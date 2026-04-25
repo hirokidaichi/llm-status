@@ -1,0 +1,24 @@
+{
+  "name": "llm-status",
+  "version": "0.1.0",
+  "description": "Show today's Claude Code and OpenAI Codex usage in one place — tokens, estimated cost, and Codex rate limits.",
+  "type": "module",
+  "bin": {
+    "llm-status": "bin/llm-status"
+  },
+  "scripts": {
+    "start": "bun src/index.ts",
+    "build": "bun build src/index.ts --target=bun --outdir=dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}
