@@ -1,5 +1,6 @@
 import { loadClaudeUsage } from "../claude/reader.ts";
 import { loadCodexUsage } from "../codex/reader.ts";
+import { loadGeminiUsage } from "../gemini/reader.ts";
 import { totalTokens, type UsageEntry } from "../types.ts";
 import { c, fmtCost, fmtNum } from "../format/colors.ts";
 import { renderTable } from "../format/table.ts";
@@ -44,12 +45,14 @@ const totalOf = (s: Summary): number => s.input + s.cacheCreate + s.cacheRead + 
 
 export const runDefault = async (): Promise<void> => {
   const since = startOfToday();
-  const [claude, codex] = await Promise.all([
+  const [claude, codex, gemini] = await Promise.all([
     loadClaudeUsage({ since }),
     loadCodexUsage({ since }),
+    loadGeminiUsage({ since }),
   ]);
   const cs = summarize(claude);
   const xs = summarize(codex);
+  const gs = summarize(gemini);
 
   console.log(c.bold(`Today (${dateKey(since)})`));
   console.log("");
@@ -79,12 +82,17 @@ export const runDefault = async (): Promise<void> => {
   ];
 
   console.log(
-    renderTable(cols, [row(c.cyan("Claude"), cs), row(c.magenta("Codex"), xs)]),
+    renderTable(cols, [
+      row(c.cyan("Claude"), cs),
+      row(c.magenta("Codex"), xs),
+      row(c.blue("Gemini"), gs),
+    ]),
   );
   console.log("");
+  const fmtModels = (s: Set<string>): string => [...s].join(", ") || "—";
   console.log(
     c.dim(
-      `models: claude=[${[...cs.models].join(", ") || "—"}]  codex=[${[...xs.models].join(", ") || "—"}]`,
+      `models: claude=[${fmtModels(cs.models)}]  codex=[${fmtModels(xs.models)}]  gemini=[${fmtModels(gs.models)}]`,
     ),
   );
   console.log(c.dim("hint: llm-status daily | session | limits | --json"));

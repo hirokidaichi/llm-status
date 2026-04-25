@@ -1,5 +1,6 @@
 import { loadClaudeUsage } from "../claude/reader.ts";
 import { loadCodexUsage } from "../codex/reader.ts";
+import { loadGeminiUsage } from "../gemini/reader.ts";
 import { totalTokens } from "../types.ts";
 import { c, fmtCost, fmtNum } from "../format/colors.ts";
 import { renderTable } from "../format/table.ts";
@@ -7,11 +8,12 @@ import { groupDaily, startOfDaysAgo } from "./aggregate.ts";
 
 export const runDaily = async (days = 7): Promise<void> => {
   const since = startOfDaysAgo(days - 1);
-  const [claude, codex] = await Promise.all([
+  const [claude, codex, gemini] = await Promise.all([
     loadClaudeUsage({ since }),
     loadCodexUsage({ since }),
+    loadGeminiUsage({ since }),
   ]);
-  const buckets = groupDaily([...claude, ...codex]);
+  const buckets = groupDaily([...claude, ...codex, ...gemini]);
 
   console.log(c.bold(`Daily usage (last ${days} days)`));
   console.log("");
@@ -29,9 +31,12 @@ export const runDaily = async (days = 7): Promise<void> => {
     { header: c.dim("Est. $"), align: "right" as const },
   ];
 
+  const providerLabel = (p: string): string =>
+    p === "claude" ? c.cyan("Claude") : p === "codex" ? c.magenta("Codex") : c.blue("Gemini");
+
   const rows = buckets.map((b) => [
     b.date,
-    b.provider === "claude" ? c.cyan("Claude") : c.magenta("Codex"),
+    providerLabel(b.provider),
     fmtNum(b.entries),
     fmtNum(b.tokens.input),
     fmtNum(b.tokens.cacheCreation),

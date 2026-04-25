@@ -1,4 +1,4 @@
-export type Provider = "claude" | "codex";
+export type Provider = "claude" | "codex" | "gemini";
 
 export type TokenBreakdown = {
   input: number;
