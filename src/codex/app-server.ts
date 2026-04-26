@@ -22,9 +22,12 @@ export type RateLimitsResult = {
   rateLimitsByLimitId: Record<string, RateBlock>;
 };
 
-const RPC_TIMEOUT_MS = 12_000;
+const DEFAULT_RPC_TIMEOUT_MS = 12_000;
 
-export async function readCodexRateLimits(): Promise<RateLimitsResult> {
+export type ReadOptions = { timeoutMs?: number };
+
+export async function readCodexRateLimits(opts: ReadOptions = {}): Promise<RateLimitsResult> {
+  const timeoutMs = opts.timeoutMs ?? DEFAULT_RPC_TIMEOUT_MS;
   const proc = Bun.spawn(["codex", "app-server"], {
     stdin: "pipe",
     stdout: "pipe",
@@ -44,7 +47,7 @@ export async function readCodexRateLimits(): Promise<RateLimitsResult> {
   const decoder = new TextDecoder();
   let buf = "";
 
-  const deadline = Date.now() + RPC_TIMEOUT_MS;
+  const deadline = Date.now() + timeoutMs;
 
   send(1, "initialize", { clientInfo: { name: "llm-status", version: "0.1.0" } });
 

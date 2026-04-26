@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { emptyTokens, type UsageEntry } from "../types.ts";
@@ -41,6 +41,12 @@ async function* walkJsonl(dir: string): AsyncGenerator<string> {
 export type LoadOptions = {
   since?: Date;
   until?: Date;
+  /**
+   * statusline 用の高速化フラグ。指定すると mtime がこの時刻より古い JSONL は
+   * 中身を読まずにスキップする。Claude Code は append-only でファイルを書くので、
+   * mtime < since なら entries の timestamp も全て since 未満と仮定できる。
+   */
+  skipFilesOlderThan?: Date;
 };
 
 /**
@@ -52,7 +58,16 @@ export async function loadClaudeUsage(opts: LoadOptions = {}): Promise<UsageEntr
   const seen = new Set<string>();
   const out: UsageEntry[] = [];
 
+  const mtimeFloor = opts.skipFilesOlderThan?.getTime();
   for await (const file of walkJsonl(PROJECTS_DIR)) {
+    if (mtimeFloor !== undefined) {
+      try {
+        const s = await stat(file);
+        if (s.mtimeMs < mtimeFloor) continue;
+      } catch {
+        continue;
+      }
+    }
     let text: string;
     try {
       text = await Bun.file(file).text();

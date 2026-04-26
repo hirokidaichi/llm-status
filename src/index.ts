@@ -3,6 +3,8 @@ import { runDaily } from "./cli/daily.ts";
 import { runSession } from "./cli/session.ts";
 import { runLimits } from "./cli/limits.ts";
 import { runJson } from "./cli/json.ts";
+import { parseSegments, runStatusline } from "./cli/statusline.ts";
+import type { CodexFormat } from "./statusline/codex.ts";
 
 const HELP = `llm-status — Claude Code & OpenAI Codex usage on one screen
 
@@ -12,14 +14,21 @@ USAGE:
   llm-status session [--limit N] [--days N]
                                    Recent sessions
   llm-status limits                Codex rate limits (5h / weekly window)
+  llm-status statusline [--segments LIST] [--format F]
+                                   One-line statusline (Claude Code stdin JSON aware)
   llm-status --json [today|daily|session] [--days N]
                                    Machine-readable output
 
 OPTIONS:
-  --days N      Look back N days (default 7)
-  --limit N     Cap rows for session view (default 20)
-  --json        Print JSON instead of a table
-  -h, --help    Show this help
+  --days N        Look back N days (default 7)
+  --limit N       Cap rows for session view (default 20)
+  --segments L    Comma-separated tokens. Use 'nl' to break to a new line. Tokens:
+                  model, 5h, 7d, 7d_opus, 7d_sonnet, branch, codex,
+                  gitstats, gitsummary, nl
+                  (default: model,5h,7d,branch,codex,nl,gitstats,gitsummary)
+  --format F      Codex segment format: minimal | compact (default) | full
+  --json          Print JSON instead of a table
+  -h, --help      Show this help
 `;
 
 type ParsedArgs = {
@@ -95,6 +104,14 @@ const main = async (): Promise<void> => {
     case "limits":
       await runLimits(false);
       return;
+    case "statusline": {
+      const fmtRaw = args.flags.format;
+      const codexFormat: CodexFormat =
+        fmtRaw === "minimal" || fmtRaw === "compact" || fmtRaw === "full" ? fmtRaw : "compact";
+      const segRaw = typeof args.flags.segments === "string" ? args.flags.segments : undefined;
+      await runStatusline(parseSegments(segRaw), codexFormat);
+      return;
+    }
     case "help":
       console.log(HELP);
       return;
