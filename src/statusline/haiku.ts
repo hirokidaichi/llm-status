@@ -53,7 +53,7 @@ const truncateByWidth = (s: string, max: number): string => {
 };
 
 
-const mechanicalSummary = (status: string): string => {
+export const mechanicalSummary = (status: string): string => {
   const lines = status.split("\n").filter(Boolean);
   let m = 0;
   let a = 0;

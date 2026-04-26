@@ -49,9 +49,11 @@ const parseWindow = (w: RawWindow | null | undefined): Window | null => {
   return { utilization: w.utilization, resetsAt };
 };
 
-export const readClaudeRateLimits = async (): Promise<ClaudeRateLimits | null> => {
+export const readClaudeRateLimits = async (
+  path: string = CACHE_FILE,
+): Promise<ClaudeRateLimits | null> => {
   try {
-    const text = await Bun.file(CACHE_FILE).text();
+    const text = await Bun.file(path).text();
     const raw = JSON.parse(text) as RawData;
     const d = raw.data;
     if (!d) return null;
