@@ -4,6 +4,7 @@ import { runSession } from "./cli/session.ts";
 import { runLimits } from "./cli/limits.ts";
 import { runJson } from "./cli/json.ts";
 import { parseSegments, runStatusline } from "./cli/statusline.ts";
+import { parseArgs, num } from "./cli/args.ts";
 import type { CodexFormat } from "./statusline/codex.ts";
 
 const HELP = `llm-status — Claude Code & OpenAI Codex usage on one screen
@@ -23,46 +24,13 @@ OPTIONS:
   --days N        Look back N days (default 7)
   --limit N       Cap rows for session view (default 20)
   --segments L    Comma-separated tokens. Use 'nl' to break to a new line. Tokens:
-                  model, 5h, 7d, 7d_opus, 7d_sonnet, branch, codex,
-                  gitstats, gitsummary, nl
-                  (default: model,5h,7d,branch,codex,nl,gitstats,gitsummary)
+                  model, ctx, 5h, 7d, 7d_opus, 7d_sonnet, branch, codex,
+                  gemini, gitstats, gitsummary, git, nl
+                  (default: model,ctx,5h,7d,nl,branch,git,nl,codex,gemini)
   --format F      Codex segment format: minimal | compact (default) | full
   --json          Print JSON instead of a table
   -h, --help      Show this help
 `;
-
-type ParsedArgs = {
-  positional: string[];
-  flags: Record<string, string | boolean>;
-};
-
-const parseArgs = (argv: string[]): ParsedArgs => {
-  const out: ParsedArgs = { positional: [], flags: {} };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i] ?? "";
-    if (a.startsWith("--")) {
-      const key = a.slice(2);
-      const next = argv[i + 1];
-      if (next && !next.startsWith("-")) {
-        out.flags[key] = next;
-        i++;
-      } else {
-        out.flags[key] = true;
-      }
-    } else if (a === "-h") {
-      out.flags.help = true;
-    } else {
-      out.positional.push(a);
-    }
-  }
-  return out;
-};
-
-const num = (v: string | boolean | undefined, fallback: number): number => {
-  if (typeof v !== "string") return fallback;
-  const n = Number.parseInt(v, 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
 
 const main = async (): Promise<void> => {
   const args = parseArgs(process.argv.slice(2));
@@ -106,8 +74,21 @@ const main = async (): Promise<void> => {
       return;
     case "statusline": {
       const fmtRaw = args.flags.format;
-      const codexFormat: CodexFormat =
-        fmtRaw === "minimal" || fmtRaw === "compact" || fmtRaw === "full" ? fmtRaw : "compact";
+      let codexFormat: CodexFormat = "compact";
+      if (fmtRaw !== undefined && fmtRaw !== true) {
+        if (fmtRaw === "minimal" || fmtRaw === "compact" || fmtRaw === "full") {
+          codexFormat = fmtRaw;
+        } else {
+          // statusline は本来 stderr に書きたくないが、`statusline` コマンドは
+           // Claude Code 経由ではなく shell から手動で叩かれた場合のみここに
+           // 来る（Claude Code は stdin を渡す）。typo を黙って吸わないため
+           // 明示的にエラーで返す。
+          console.error(
+            `invalid --format value: "${fmtRaw}" (expected: minimal | compact | full)`,
+          );
+          process.exit(2);
+        }
+      }
       const segRaw = typeof args.flags.segments === "string" ? args.flags.segments : undefined;
       await runStatusline(parseSegments(segRaw), codexFormat);
       return;

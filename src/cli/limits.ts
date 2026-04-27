@@ -57,6 +57,6 @@ export const runLimits = async (jsonOut = false): Promise<void> => {
   ];
 
   const rows: string[][] = [];
-  for (const [, b] of Object.entries(res.rateLimitsByLimitId)) rows.push(...blockRows(b));
+  for (const [, b] of Object.entries(res.rateLimitsByLimitId ?? {})) rows.push(...blockRows(b));
   console.log(renderTable(cols, rows));
 };

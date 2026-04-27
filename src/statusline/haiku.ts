@@ -6,7 +6,7 @@
 //
 // ネットワークアクセスを無効化したい場合は LLM_STATUS_NO_HAIKU=1 を設定する。
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, rename, unlink, readdir, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -16,6 +16,10 @@ const CACHE_DIR = join(homedir(), ".cache", "llm-status", "git-summaries");
 const HAIKU_TIMEOUT_MS = 2_500;
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+// 制限なくキャッシュが増殖するのを防ぐため、書き込み時に確率的に
+// 30 日以上古いファイルを掃除する。
+const PRUNE_PROBABILITY = 0.05;
+const PRUNE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 // プロンプトを変えたら PROMPT_VERSION を更新してキャッシュを自動失効させる。
 const PROMPT_VERSION = "v2-ja";
@@ -96,10 +100,42 @@ const readCache = async (key: string): Promise<string | null> => {
 const writeCache = async (key: string, value: string): Promise<void> => {
   try {
     await mkdir(CACHE_DIR, { recursive: true });
-    await Bun.write(join(CACHE_DIR, `${key}.txt`), value);
+    const target = join(CACHE_DIR, `${key}.txt`);
+    // truncated 書き込みが残るのを避けるため temp + rename。
+     // 中断されると temp ファイルが残るが、別キャッシュ命名を汚染しない。
+    const tmp = `${target}.tmp.${process.pid}.${Date.now()}`;
+    await Bun.write(tmp, value);
+    try {
+      await rename(tmp, target);
+    } catch (e) {
+      try { await unlink(tmp); } catch {}
+      throw e;
+    }
+    if (Math.random() < PRUNE_PROBABILITY) {
+      // best-effort で古いキャッシュ掃除。awaitしない（statusline 路側に
+       // 影響しないようにバックグラウンドで投げ捨てる）。
+      pruneOldCache().catch(() => {});
+    }
   } catch {
     // best-effort
   }
+};
+
+const pruneOldCache = async (): Promise<void> => {
+  try {
+    const entries = await readdir(CACHE_DIR);
+    const cutoff = Date.now() - PRUNE_MAX_AGE_MS;
+    await Promise.all(
+      entries.map(async (name) => {
+        if (!name.endsWith(".txt") && !name.includes(".tmp.")) return;
+        const p = join(CACHE_DIR, name);
+        try {
+          const s = await stat(p);
+          if (s.mtimeMs < cutoff) await unlink(p);
+        } catch {}
+      }),
+    );
+  } catch {}
 };
 
 const callHaiku = async (status: string, diffStat: string | null): Promise<string | null> => {

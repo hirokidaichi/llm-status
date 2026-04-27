@@ -4,10 +4,17 @@
 import { c } from "../format/colors.ts";
 import { type StatuslineInput, inputCwd } from "./input.ts";
 import { readContextSize } from "./transcript.ts";
-import { gitBranch, gitStatus, gitDiffShortstat, countUntracked } from "./git.ts";
+import {
+  gitBranch,
+  gitStatus,
+  gitDiffShortstat,
+  gitRepoSlug,
+  countUntracked,
+} from "./git.ts";
 import { haikuGitSummary } from "./haiku.ts";
 import { codexSegment, type CodexFormat } from "./codex.ts";
 import { readClaudeRateLimits, type Window } from "./claude-ratelimit.ts";
+import { getGeminiStats, formatTokens } from "./gemini-stats.ts";
 
 export type SegmentName =
   | "model"
@@ -18,6 +25,7 @@ export type SegmentName =
   | "7d_sonnet"
   | "branch"
   | "codex"
+  | "gemini"
   | "gitstats"
   | "gitsummary"
   | "git";
@@ -92,8 +100,11 @@ export const sevenDaySonnetSegment = async (): Promise<string> => {
 };
 
 export const branchSegment = async (input: StatuslineInput | null): Promise<string> => {
-  const b = await gitBranch(inputCwd(input));
-  return b ? `${c.green("🌿")} ${c.green(b)}` : "";
+  const cwd = inputCwd(input);
+  const [b, slug] = await Promise.all([gitBranch(cwd), gitRepoSlug(cwd)]);
+  if (!b) return "";
+  const label = slug ? `${c.green(slug)} ${c.dim(`(${b})`)}` : c.green(b);
+  return `${c.green("🌿")} ${label}`;
 };
 
 export const gitstatsSegment = async (input: StatuslineInput | null): Promise<string> => {
@@ -115,6 +126,17 @@ export const gitsummarySegment = async (input: StatuslineInput | null): Promise<
   const summary = await haikuGitSummary(inputCwd(input));
   if (!summary) return "";
   return c.italic(summary);
+};
+
+// Gemini はクォータ取得 API が無いため、ローカルログから直近の利用「実数」だけ
+// 出す。％ は出さない（嘘になる）。データが無い場合は空文字。
+export const geminiSegment = async (): Promise<string> => {
+  const s = await getGeminiStats();
+  if (!s) return "";
+  if (s.day7.tokens === 0) return "";
+  const day1 = formatTokens(s.day1.tokens);
+  const day7 = formatTokens(s.day7.tokens);
+  return `${c.magenta("♊")} ${c.dim("Gemini")} ${c.bold(c.magenta("24h"))} ${day1} ${c.dim("·")} ${c.bold(c.magenta("7d"))} ${day7}`;
 };
 
 // gitstats と gitsummary を「：」で結合した複合セグメント。デフォルト推奨。
@@ -150,6 +172,8 @@ export const renderSegment = async (
       return branchSegment(input);
     case "codex":
       return codexSegment(codexFormat);
+    case "gemini":
+      return geminiSegment();
     case "gitstats":
       return gitstatsSegment(input);
     case "gitsummary":
