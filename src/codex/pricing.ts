@@ -31,10 +31,11 @@ export const codexCost = (
 ): number => {
   const p = codexPrice(model);
   if (!p) return 0;
-  // OpenAI は reasoning_output_tokens も output 課金
-  const billedInput = Math.max(0, t.input - t.cacheRead);
+  // reader 側で input は cached を、output は reasoning を差し引いた排他的な
+   // 値が入っている。OpenAI の課金は reasoning も output と同じレートなので、
+   // ここで output + reasoning を足し戻して総 output として課金する。
   return (
-    (billedInput * p.input + t.cacheRead * p.cachedInput + (t.output + t.reasoning) * p.output) /
+    (t.input * p.input + t.cacheRead * p.cachedInput + (t.output + t.reasoning) * p.output) /
     1_000_000
   );
 };

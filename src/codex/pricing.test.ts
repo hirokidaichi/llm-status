@@ -85,12 +85,11 @@ describe("codexCost", () => {
     ).toBeCloseTo(1.25, 6);
   });
 
-  test("billedInput is 0 when cacheRead == input; only cacheRead is billed", () => {
-    // billedInput = max(0, 1M - 1M) = 0
-    // cacheRead 1M * $0.125/M = 0.125
+  test("input and cacheRead are billed independently (exclusive fields)", () => {
+    // 0M billed input + 1M cacheRead * $0.125/M = 0.125
     expect(
       codexCost("gpt-5", {
-        input: 1_000_000,
+        input: 0,
         cacheRead: 1_000_000,
         output: 0,
         reasoning: 0,
@@ -98,17 +97,16 @@ describe("codexCost", () => {
     ).toBeCloseTo(0.125, 6);
   });
 
-  test("billedInput clamps to 0 when cacheRead > input (no negative)", () => {
-    // billedInput = max(0, 1M - 2M) = 0
-    // cacheRead 2M * $0.125/M = 0.25
+  test("input portion bills at full rate, cacheRead at discounted rate", () => {
+    // 1M @ 1.25 + 1M @ 0.125 = 1.375
     expect(
       codexCost("gpt-5", {
         input: 1_000_000,
-        cacheRead: 2_000_000,
+        cacheRead: 1_000_000,
         output: 0,
         reasoning: 0,
       }),
-    ).toBeCloseTo(0.25, 6);
+    ).toBeCloseTo(1.375, 6);
   });
 
   test("bills reasoning_output_tokens at the output rate", () => {

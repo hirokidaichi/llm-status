@@ -34,9 +34,9 @@ export const geminiCost = (
 ): number => {
   const p = geminiPrice(model);
   if (!p) return 0;
-  const billedInput = Math.max(0, t.input - t.cacheRead);
+  // reader 側で input と cacheRead は排他的になっているのでそのまま掛けるだけ。
   return (
-    (billedInput * p.input + t.cacheRead * p.cachedInput + (t.output + t.reasoning) * p.output) /
+    (t.input * p.input + t.cacheRead * p.cachedInput + (t.output + t.reasoning) * p.output) /
     1_000_000
   );
 };

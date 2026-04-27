@@ -79,10 +79,16 @@ export async function loadGeminiUsage(opts: LoadOptions = {}): Promise<UsageEntr
       if (seen.has(key)) continue;
       seen.add(key);
 
+      // Gemini の `tokens.input` は `cached` を**包含**する値（Gemini API の
+       // promptTokenCount = cachedContentTokenCount + 課金対象 input）。
+       // Claude/Codex の TokenBreakdown は排他的なので、cacheRead を input から
+       // 差し引いて格納する。これで `totalTokens()` と log の `t.total` が一致。
+      const cached = t.cached ?? 0;
+      const rawInput = t.input ?? 0;
       const tokens = {
         ...emptyTokens(),
-        input: t.input ?? 0,
-        cacheRead: t.cached ?? 0,
+        input: Math.max(0, rawInput - cached),
+        cacheRead: cached,
         output: (t.output ?? 0) + (t.tool ?? 0),
         reasoning: t.thoughts ?? 0,
       };

@@ -111,12 +111,20 @@ export async function loadCodexUsage(opts: LoadOptions = {}): Promise<UsageEntry
 
   const out: UsageEntry[] = [];
   for (const s of sessions.values()) {
+    // Codex の `total_token_usage` は OpenAI 同様、`input_tokens` が
+     // `cached_input_tokens` を、`output_tokens` が `reasoning_output_tokens`
+     // を**包含**する仕様（total_tokens = input_tokens + output_tokens で検証済）。
+     // TokenBreakdown は排他的に保つため、それぞれ差し引いて格納する。
+    const inputT = s.total.input_tokens ?? 0;
+    const cachedT = s.total.cached_input_tokens ?? 0;
+    const outputT = s.total.output_tokens ?? 0;
+    const reasoningT = s.total.reasoning_output_tokens ?? 0;
     const tokens = {
       ...emptyTokens(),
-      input: s.total.input_tokens ?? 0,
-      cacheRead: s.total.cached_input_tokens ?? 0,
-      output: s.total.output_tokens ?? 0,
-      reasoning: s.total.reasoning_output_tokens ?? 0,
+      input: Math.max(0, inputT - cachedT),
+      cacheRead: cachedT,
+      output: Math.max(0, outputT - reasoningT),
+      reasoning: reasoningT,
     };
     out.push({
       provider: "codex",

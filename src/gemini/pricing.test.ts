@@ -80,17 +80,7 @@ describe("geminiPrice", () => {
 });
 
 describe("geminiCost", () => {
-  test("billedInput uses max(0, input - cacheRead) when input == cacheRead", () => {
-    const cost = geminiCost("gemini-2.5-pro", {
-      input: 1_000_000,
-      cacheRead: 1_000_000,
-      output: 0,
-      reasoning: 0,
-    });
-    expect(cost).toBeCloseTo(0.31, 6);
-  });
-
-  test("billedInput is clamped to 0 when input < cacheRead", () => {
+  test("input and cacheRead are billed independently (exclusive fields)", () => {
     const cost = geminiCost("gemini-2.5-pro", {
       input: 0,
       cacheRead: 1_000_000,
@@ -98,6 +88,17 @@ describe("geminiCost", () => {
       reasoning: 0,
     });
     expect(cost).toBeCloseTo(0.31, 6);
+  });
+
+  test("input portion bills at full input rate, cacheRead at discounted rate", () => {
+    const cost = geminiCost("gemini-2.5-pro", {
+      input: 1_000_000,
+      cacheRead: 1_000_000,
+      output: 0,
+      reasoning: 0,
+    });
+    // 1M @ 1.25 + 1M @ 0.31 = 1.56
+    expect(cost).toBeCloseTo(1.56, 6);
   });
 
   test("reasoning tokens are billed at output rate", () => {
