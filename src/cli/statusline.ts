@@ -2,7 +2,7 @@
 // `nl` という特殊トークンを segment 列に挟むと、そこで改行する。
 // 各セグメントは並列に評価され、空文字を返したものは出力から除外される。
 
-import { c } from "../format/colors.ts";
+import { enableColorForStatusline, muted } from "../format/colors.ts";
 import { readInput } from "../statusline/input.ts";
 import { renderSegment, type SegmentName } from "../statusline/segments.ts";
 import type { CodexFormat } from "../statusline/codex.ts";
@@ -55,6 +55,9 @@ export const runStatusline = async (
   segments: SegmentToken[],
   codexFormat: CodexFormat,
 ): Promise<void> => {
+  // Claude Code は statusline 出力をパイプで受ける（非 TTY）が、表示先は端末なので
+  // 色を強制有効化する。これが無いと picocolors が自動抑制して全部灰色になる。
+  enableColorForStatusline();
   const input = await readInput();
   // 各 segment が throw しても statusline 全体を絶対に落とさないため、
    // ここで最後の防衛線を張る（CLAUDE.md: statusline must never throw）。
@@ -81,7 +84,7 @@ export const runStatusline = async (
     }
   }
 
-  const sep = c.dim(" · ");
+  const sep = muted(" · ");
   const text = lines
     .filter((l) => l.length > 0)
     .map((l) => l.join(sep))

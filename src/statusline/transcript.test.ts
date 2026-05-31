@@ -201,6 +201,13 @@ describe("readContextSize", () => {
       expect(result?.model).toBe("claude-sonnet-4-6");
     });
 
+    test("claude-opus-4-8 -> 1_000_000 (1M context model)", async () => {
+      const path = await writeFixture(14, mkLine("claude-opus-4-8"));
+      const result = await readContextSize(path);
+      expect(result?.max).toBe(1_000_000);
+      expect(result?.model).toBe("claude-opus-4-8");
+    });
+
     test("claude-haiku-4-5-20251001 -> 200_000", async () => {
       const path = await writeFixture(10, mkLine("claude-haiku-4-5-20251001"));
       const result = await readContextSize(path);

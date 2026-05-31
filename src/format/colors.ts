@@ -1,6 +1,23 @@
 import pc from "picocolors";
 
-export const c = pc;
+// 既定は picocolors の自動判定（TTY なら色あり / パイプ・リダイレクトなら色なし）。
+// statusline は Claude Code に **パイプ**で渡される（= 非 TTY）ため、このままだと
+// 色が自動抑制されて全部端末デフォルト色（灰色）になってしまう。出力先は実際には
+// 端末なので、statusline 実行時のみ enableColorForStatusline() で強制有効化する。
+// `export let` のライブバインディングにより、再代入は import 先からも参照される。
+export let c: ReturnType<typeof pc.createColors> = pc;
+
+// statusline 用に色を強制 ON にする。NO_COLOR が設定されていれば尊重して無効のまま。
+export const enableColorForStatusline = (): void => {
+  if (process.env.NO_COLOR) return;
+  c = pc.createColors(true);
+};
+
+// statusline の補助テキスト（ラベル・区切り・電池の空セル・reset 時刻など）用の
+// 控えめな色。ANSI の dim は端末テーマによって暗すぎて読めないため、明るめの
+// グレー（blackBright）を使う。ここ 1 箇所を変えれば全体の「グレー」の明るさを
+// 調整できる（さらに明るくしたいなら c.white に変える）。
+export const muted = (s: string): string => c.blackBright(s);
 
 export const fmtNum = (n: number): string => {
   if (n === 0) return "0";

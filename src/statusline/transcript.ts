@@ -4,8 +4,13 @@
 
 const TAIL_BYTES = 256 * 1024;
 
+// 1M context を持つモデルを明示列挙する。過剰一般化（/opus/ を全部 1M 等）は
+// opus-3-5 など 200k モデルを誤判定するので避ける。transcript の model 文字列は
+// `[1m]` などの suffix が付かない素の ID（例: claude-opus-4-8）。
+// なお stdin に context_window.context_window_size が来る環境ではこの表は使われず、
+// あくまで古い Claude Code 向けのフォールバック。
 const MODEL_CONTEXT: Array<{ match: RegExp; ctx: number }> = [
-  { match: /opus-4-7|sonnet-4-6/i, ctx: 1_000_000 },
+  { match: /opus-4-7|opus-4-8|sonnet-4-6/i, ctx: 1_000_000 },
   { match: /opus|sonnet|haiku/i, ctx: 200_000 },
 ];
 

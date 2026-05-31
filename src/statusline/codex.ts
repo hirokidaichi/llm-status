@@ -3,7 +3,7 @@
 
 import { readCodexRateLimits, type RateBlock, type RateLimitsResult } from "../codex/app-server.ts";
 import { readCachedLimits, writeCachedLimits } from "../codex/cache.ts";
-import { c, fmtPct } from "../format/colors.ts";
+import { c, fmtPct, muted } from "../format/colors.ts";
 
 const CACHE_TTL_MS = 60_000;
 const STATUSLINE_RPC_TIMEOUT_MS = 3_000;
@@ -34,7 +34,7 @@ const pickBlock = (data: RateLimitsResult): RateBlock | null => {
 
 export const renderCodex = (data: RateLimitsResult | null, format: CodexFormat): string => {
   const label = `${c.magenta("⚡")} ${c.bold(c.magenta("Codex"))}`;
-  const dash = format === "minimal" ? c.dim("—") : `${label} ${c.dim("—")}`;
+  const dash = format === "minimal" ? muted("—") : `${label} ${muted("—")}`;
   if (!data) return dash;
   const block = pickBlock(data);
   if (!block) return dash;
@@ -42,15 +42,15 @@ export const renderCodex = (data: RateLimitsResult | null, format: CodexFormat):
   const parts: string[] = [];
   for (const w of [block.primary, block.secondary]) {
     if (!w) continue;
-    const win = c.dim(fmtWindow(w.windowDurationMins));
+    const win = muted(fmtWindow(w.windowDurationMins));
     const pct = c.bold(fmtPct(w.usedPercent));
     if (format === "minimal") parts.push(`${win}:${pct}`);
     else if (format === "compact") parts.push(`${win} ${pct}`);
-    else parts.push(`${win} ${pct}${c.dim(`(${fmtUntil(w.resetsAt)})`)}`);
+    else parts.push(`${win} ${pct}${muted(`(${fmtUntil(w.resetsAt)})`)}`);
   }
   if (parts.length === 0) return dash;
 
-  const sep = format === "minimal" ? " " : c.dim(" / ");
+  const sep = format === "minimal" ? " " : muted(" / ");
   const body = parts.join(sep);
   return format === "minimal" ? body : `${label} ${body}`;
 };
